@@ -22,17 +22,23 @@ public class Main {
         }
     }
 
-    public static boolean isCorrectName(String name) {
+    static boolean isCorrectName(String name) {
         return name.matches("[a-zA-Z]+[a-zA-Z\\s]*");
     }
 
-    private static boolean isCorrectIngredients(String ingredients) {
+    static boolean isCorrectIngredients(String ingredients) {
         return ingredients.matches("[a-zA-Z]+(,\\s+[a-zA-Z]+[a-zA-Z\\s]*)*");
+    }
+
+    static boolean isCorrectCategory(String category) {
+        return category.equals(MealCategory.BREAKFAST.getCategory()) ||
+                category.equals(MealCategory.LUNCH.getCategory()) ||
+                category.equals(MealCategory.DINNER.getCategory());
     }
     
     public static void menu(Statement mealStatement, Statement ingredientsStatement) throws SQLException {
         Scanner scanner = new Scanner(System.in);
-        int mealId = 1, ingredientId = 1;
+//        int mealId = 1, ingredientId = 1;
 
         while (true) {
             System.out.println("What would you like to do (add, show, exit)?");
@@ -45,9 +51,7 @@ public class Main {
                         System.out.println("Which meal do you want to add (breakfast, lunch, dinner)?");
                         String category = scanner.nextLine();
 
-                        if (category.equals(MealCategory.BREAKFAST.getCategory()) ||
-                                category.equals(MealCategory.LUNCH.getCategory()) ||
-                                category.equals(MealCategory.DINNER.getCategory())) {
+                        if (isCorrectCategory(category)) {
 
                             String name, ingredients;
 
@@ -75,19 +79,22 @@ public class Main {
                                 break;
                             }
 
-                            mealStatement.executeUpdate("insert into meals (category, meal, meal_id) " +
-                                    "values ('" + category + "', '" + name + "', " + mealId + ")");
+                            ResultSet mealsResultSet = mealStatement.executeQuery("insert into meals (category, meal) " +
+                                    "values ('" + category + "', '" + name + "') returning meal_id");
 
+                            int mealId = 0;
+
+                            while (mealsResultSet.next()) {
+                                mealId = mealsResultSet.getInt("meal_id");
+                            }
+                            
                             String[] ingredientsArr = ingredients.split(",\\s*");
                             for (String ingredient : ingredientsArr) {
 
-                                ingredientsStatement.executeUpdate("insert into ingredients (ingredient, ingredient_id, meal_id) " +
-                                        "values ('" + ingredient.trim() + "', '" + ingredientId + "', " + mealId + ")");
-
-                                ingredientId++;
+                                ingredientsStatement.executeUpdate("insert into ingredients (ingredient, meal_id) " +
+                                        "values ('" + ingredient.trim() + "', '" + mealId + "')");
+                                
                             }
-
-                            mealId++;
 
                             System.out.println("The meal has been added!");
 
@@ -98,13 +105,29 @@ public class Main {
                     }
                     break;
                 case "show":
-                    ResultSet mealsResultSet = mealStatement.executeQuery("select * from meals");
+                    System.out.println("Which category do you want to print (breakfast, lunch, dinner)?");
+                    String category;
+
+                    while (true) {
+                        category = scanner.nextLine();
+
+                        if (!isCorrectCategory(category)) {
+                            System.out.println("Wrong meal category! Choose from: breakfast, lunch, dinner.");
+                            continue;
+                        }
+
+                        break;
+                    }
+
+                    ResultSet mealsResultSet = mealStatement.executeQuery("select * from meals where category = '" + category + "'");
 
                     if (!mealsResultSet.isBeforeFirst()) {
-                        System.out.println("No meals saved. Add a meal first.");
+                        System.out.println("No meals found.");
                     } else {
+                        System.out.println("Category: " + category);
+
                         while (mealsResultSet.next()) {
-                            String category = mealsResultSet.getString("category");
+//                            String category = mealsResultSet.getString("category");
                             String name = mealsResultSet.getString("meal");
                             List<String> ingredients = new ArrayList<>();
 
@@ -118,7 +141,7 @@ public class Main {
 
                             Meal meal = new Meal(category, name, ingredients);
 
-                            System.out.printf("%s%n", meal);
+                            System.out.printf("%s%n", meal.toStringByCategory());
 
                             ingredientsResultSet.close();
                         }
@@ -150,12 +173,12 @@ public class Main {
             mealStatement.executeUpdate("create table if not exists meals (" +
                     "category varchar(1024) NOT NULL," +
                     "meal varchar(1024) NOT NULL," +
-                    "meal_id integer NOT NULL PRIMARY KEY" +
+                    "meal_id integer generated always as identity NOT NULL PRIMARY KEY" +
                     ")");
 
             ingredientsStatement.executeUpdate("create table if not exists ingredients (" +
                     "ingredient varchar(1024) NOT NULL," +
-                    "ingredient_id integer NOT NULL PRIMARY KEY," +
+                    "ingredient_id integer generated always as identity NOT NULL PRIMARY KEY," +
                     "meal_id integer NOT NULL," +
                     "FOREIGN KEY (meal_id) REFERENCES meals(meal_id)" +
                     ")");

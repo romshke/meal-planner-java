@@ -55,4 +55,23 @@ public class Meal {
 
         return result.toString();
     }
+
+    public String toStringByCategory() {
+        StringBuilder result = new StringBuilder();
+
+        result.append("Name: ").append(name).append(System.lineSeparator());
+        result.append("Ingredients: ").append(System.lineSeparator());
+
+        Iterator<String> iterator = ingredients.iterator();
+
+        while (iterator.hasNext()) {
+            result.append(iterator.next());
+            if (iterator.hasNext()) {
+                result.append(System.lineSeparator());
+            }
+        }
+
+        return result.toString();
+    }
+
 }
