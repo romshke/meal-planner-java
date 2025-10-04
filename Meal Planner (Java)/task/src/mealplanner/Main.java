@@ -1,5 +1,6 @@
 package mealplanner;
 
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -28,10 +29,10 @@ public class Main {
     private static boolean isCorrectIngredients(String ingredients) {
         return ingredients.matches("[a-zA-Z]+(,\\s+[a-zA-Z]+[a-zA-Z\\s]*)*");
     }
-
-    public static void main(String[] args) {
+    
+    public static void menu(Statement mealStatement, Statement ingredientsStatement) throws SQLException {
         Scanner scanner = new Scanner(System.in);
-        List<Meal> meals = new ArrayList<>();
+        int mealId = 1, ingredientId = 1;
 
         while (true) {
             System.out.println("What would you like to do (add, show, exit)?");
@@ -45,8 +46,8 @@ public class Main {
                         String category = scanner.nextLine();
 
                         if (category.equals(MealCategory.BREAKFAST.getCategory()) ||
-                            category.equals(MealCategory.LUNCH.getCategory()) ||
-                            category.equals(MealCategory.DINNER.getCategory())) {
+                                category.equals(MealCategory.LUNCH.getCategory()) ||
+                                category.equals(MealCategory.DINNER.getCategory())) {
 
                             String name, ingredients;
 
@@ -74,8 +75,20 @@ public class Main {
                                 break;
                             }
 
-                            Meal meal = new Meal(category, name, ingredients);
-                            meals.add(meal);
+                            mealStatement.executeUpdate("insert into meals (category, meal, meal_id) " +
+                                    "values ('" + category + "', '" + name + "', " + mealId + ")");
+
+                            String[] ingredientsArr = ingredients.split(",\\s*");
+                            for (String ingredient : ingredientsArr) {
+
+                                ingredientsStatement.executeUpdate("insert into ingredients (ingredient, ingredient_id, meal_id) " +
+                                        "values ('" + ingredient.trim() + "', '" + ingredientId + "', " + mealId + ")");
+
+                                ingredientId++;
+                            }
+
+                            mealId++;
+
                             System.out.println("The meal has been added!");
 
                             break;
@@ -85,13 +98,34 @@ public class Main {
                     }
                     break;
                 case "show":
-                    if (meals.isEmpty()) {
+                    ResultSet mealsResultSet = mealStatement.executeQuery("select * from meals");
+
+                    if (!mealsResultSet.isBeforeFirst()) {
                         System.out.println("No meals saved. Add a meal first.");
                     } else {
-                        for (Meal meal : meals) {
-                            System.out.println(meal);
+                        while (mealsResultSet.next()) {
+                            String category = mealsResultSet.getString("category");
+                            String name = mealsResultSet.getString("meal");
+                            List<String> ingredients = new ArrayList<>();
+
+                            ResultSet ingredientsResultSet = ingredientsStatement.executeQuery("select ingredient from ingredients " +
+                                    "join meals on meals.meal_id = ingredients.meal_id " +
+                                    "where ingredients.meal_id = " + mealsResultSet.getInt("meal_id"));
+
+                            while (ingredientsResultSet.next()) {
+                                ingredients.add(ingredientsResultSet.getString("ingredient"));
+                            }
+
+                            Meal meal = new Meal(category, name, ingredients);
+
+                            System.out.printf("%s%n", meal);
+
+                            ingredientsResultSet.close();
                         }
                     }
+
+                    mealsResultSet.close();
+
                     break;
                 case "exit":
                     System.out.println("Bye!");
@@ -102,5 +136,40 @@ public class Main {
         }
     }
 
+    public static void connectToDatabase() {
+        String DB_URL = "jdbc:postgresql:meals_db";
+        String USER = "postgres";
+        String PASS = "1111";
 
+        try (Connection connection = DriverManager.getConnection(DB_URL, USER, PASS)) {
+            connection.setAutoCommit(true);
+
+            Statement mealStatement = connection.createStatement();
+            Statement ingredientsStatement = connection.createStatement();
+
+            mealStatement.executeUpdate("create table if not exists meals (" +
+                    "category varchar(1024) NOT NULL," +
+                    "meal varchar(1024) NOT NULL," +
+                    "meal_id integer NOT NULL PRIMARY KEY" +
+                    ")");
+
+            ingredientsStatement.executeUpdate("create table if not exists ingredients (" +
+                    "ingredient varchar(1024) NOT NULL," +
+                    "ingredient_id integer NOT NULL PRIMARY KEY," +
+                    "meal_id integer NOT NULL," +
+                    "FOREIGN KEY (meal_id) REFERENCES meals(meal_id)" +
+                    ")");
+
+            menu(mealStatement, ingredientsStatement);
+
+            mealStatement.close();
+            ingredientsStatement.close();
+        } catch (SQLException e) {
+            System.out.println("Connection error: " + e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        connectToDatabase();
+    }
 }

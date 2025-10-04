@@ -14,6 +14,12 @@ public class Meal {
         this.ingredients = addIngredients(ingredients);
     }
 
+    public Meal(String category, String name, List<String> ingredients) {
+        this.category = category;
+        this.name = name;
+        this.ingredients = ingredients;
+    }
+
     public String getCategory() {
         return category;
     }
@@ -27,7 +33,7 @@ public class Meal {
     }
 
     public List<String> addIngredients(String ingredients) {
-        return List.of(ingredients.split(","));
+        return List.of(ingredients.split("\\s*,\\s*"));
     }
 
     @Override
