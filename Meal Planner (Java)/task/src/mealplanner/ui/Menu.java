@@ -18,7 +18,7 @@ public class Menu {
 
     public void start() {
         while (true) {
-            System.out.println("What would you like to do (add, show, plan, list plan, exit)?");
+            System.out.println("What would you like to do (add, show, plan, list plan, save, exit)?");
             String action = scanner.nextLine().trim().toLowerCase();
 
             switch (action) {
@@ -26,6 +26,7 @@ public class Menu {
                 case "show" -> mealService.showMealsByCategoryWithIngredients(scanner);
                 case "plan" -> planService.addPlan(scanner);
                 case "list plan" -> planService.showPlan();
+                case "save" -> planService.saveShoppingList(scanner);
                 case "exit" -> {
                     System.out.println("Bye!");
                     return;

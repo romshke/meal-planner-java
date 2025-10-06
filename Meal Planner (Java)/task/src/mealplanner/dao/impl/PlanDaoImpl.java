@@ -10,7 +10,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PlanDaoImpl implements PlanDao {
     private final Connection connection;
@@ -20,7 +22,7 @@ public class PlanDaoImpl implements PlanDao {
     }
 
     @Override
-    public List<PlanOption> getPlan() {
+    public List<PlanOption> get() {
         String sql = """
             SELECT *
             FROM plan;
@@ -44,6 +46,32 @@ public class PlanDaoImpl implements PlanDao {
         }
 
         return plan;
+    }
+
+    @Override
+    public Map<String, Integer> getShoppingList() {
+        String sql = """
+            SELECT ingredient, COUNT(ingredient)
+            FROM plan
+            JOIN ingredients ON plan.meal_id = ingredients.meal_id
+            GROUP BY ingredient;
+        """;
+
+        Map<String, Integer> shoppingList = new LinkedHashMap<>();
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                String ingredient = rs.getString(1);
+                int count = rs.getInt(2);
+                shoppingList.put(ingredient, count);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting plan", e);
+        }
+
+        return shoppingList;
     }
 
     @Override

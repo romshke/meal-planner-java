@@ -8,7 +8,11 @@ import mealplanner.model.MealCategory;
 import mealplanner.model.PlanOption;
 import mealplanner.service.PlanService;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 public class PlanServiceImpl implements PlanService {
@@ -18,6 +22,11 @@ public class PlanServiceImpl implements PlanService {
     public PlanServiceImpl(PlanDao planDao, MealDao mealDao) {
         this.planDao = planDao;
         this.mealDao = mealDao;
+    }
+
+    @Override
+    public List<PlanOption> getPlan() {
+        return planDao.get();
     }
 
     @Override
@@ -55,7 +64,7 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     public void showPlan() {
-        List<PlanOption> plan = planDao.getPlan();
+        List<PlanOption> plan = getPlan();
 
         if (plan.isEmpty()) {
             System.out.println("Database does not contain any meal plans");
@@ -73,6 +82,34 @@ public class PlanServiceImpl implements PlanService {
                         mealDao.findMealById(planOption.getMealId()).getName()
                 );
             }
+        }
+    }
+
+    @Override
+    public void saveShoppingList(Scanner scanner) {
+        Map<String, Integer> shoppingList = planDao.getShoppingList();
+
+        if (shoppingList.isEmpty()) {
+            System.out.println("Unable to save. Plan your meals first.");
+        } else {
+            System.out.println("Input a filename:");
+            String fileName = scanner.nextLine();
+
+            File file = new File(fileName);
+
+            try (PrintWriter printWriter = new PrintWriter(file)) {
+                shoppingList.forEach((ingredient, count) -> {
+                    if (count > 1) {
+                        printWriter.printf("%s x%d%n", ingredient, count);
+                    } else {
+                        printWriter.println(ingredient);
+                    }
+                });
+            } catch (IOException e) {
+                System.out.println("Error: " + e.getMessage());
+            }
+
+            System.out.println("Saved!");
         }
     }
 
